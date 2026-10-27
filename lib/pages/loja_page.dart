@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../ models/produto.dart';
+import '../ models/carrinho_model.dart';
+import 'carrinho_page.dart';
 
 class LojaPage extends StatelessWidget {
   static const List<Produto> produtos = [
@@ -10,24 +13,11 @@ class LojaPage extends StatelessWidget {
     Produto(id: 5, nome: 'Mochila', preco: 89.90),
   ];
 
-  final List<Produto> carrinho;
-  final void Function(Produto) onAdicionar;
-  final VoidCallback onAbrirCarrinho;
-
-  const LojaPage({
-    super.key,
-    required this.carrinho,
-    required this.onAdicionar,
-    required this.onAbrirCarrinho,
-  });
-
-  // Total calculado a partir da lista do carrinho
-  double get total => carrinho.fold<double>(0, (soma, p) => soma + p.preco);
+  const LojaPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final cores = Theme.of(context).colorScheme;
-    final qtd = carrinho.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -57,7 +47,8 @@ class LojaPage extends StatelessWidget {
               subtitle: Text('R\$ ${produto.preco.toStringAsFixed(2)}'),
               trailing: FilledButton(
                 onPressed: () {
-                  onAdicionar(produto);
+                  // Altera o estado: context.read NÃO escuta, só pega o modelo
+                  context.read<CarrinhoModel>().adicionar(produto);
                   ScaffoldMessenger.of(context).hideCurrentSnackBar();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -75,37 +66,50 @@ class LojaPage extends StatelessWidget {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Barra do carrinho: quantidade + total + botão
-          Container(
-            color: cores.primaryContainer,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.shopping_cart),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('$qtd ${qtd == 1 ? 'item' : 'itens'}'),
-                      Text(
-                        'Total: R\$ ${total.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+          // Widget 1 que reage ao estado compartilhado
+          Consumer<CarrinhoModel>(
+            builder: (context, carrinho, _) {
+              final qtd = carrinho.quantidade;
+              return Container(
+                color: cores.primaryContainer,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shopping_cart),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('$qtd ${qtd == 1 ? 'item' : 'itens'}'),
+                          Text(
+                            'Total: R\$ ${carrinho.total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    FilledButton(
+                      onPressed: carrinho.vazio
+                          ? null
+                          : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const CarrinhoPage(),
+                          ),
+                        );
+                      },
+                      child: const Text('Ver carrinho'),
+                    ),
+                  ],
                 ),
-                FilledButton(
-                  onPressed: carrinho.isEmpty ? null : onAbrirCarrinho,
-                  child: const Text('Ver carrinho'),
-                ),
-              ],
-            ),
+              );
+            },
           ),
-          // Barra de navegação (só visual, sem função)
           NavigationBar(
             selectedIndex: 0,
             onDestinationSelected: (_) {},
